@@ -272,9 +272,12 @@ function legal(g){return rawMoves(g).filter(m=>!inCheck(make(g,m),g.t==='w'?1:-1
 function terminal(g){const lm=legal(g);if(!lm.length)return inCheck(g,g.t==='w'?1:-1)?(g.t==='w'?'Sort vinder ved skakmat!':'Hvid vinder ved skakmat!'):'Remis ved pat.';const pieces=g.b.filter(x=>x&&x.toLowerCase()!=='k');if(pieces.length===0||(pieces.length===1&&'bn'.includes(pieces[0].toLowerCase())))return 'Remis – utilstrækkeligt materiale.';if(g.half>=100)return '50-træksreglen kan give remis.';return ''}
 function uci(m){return sq(m.f)+sq(m.t)+(m.promotion||'');}
 function notation(g,m){const p=g.b[m.f],cap=g.b[m.t]||m.special==='ep',letter=p.toLowerCase()==='p'?'':({n:'S',b:'L',r:'T',q:'D',k:'K'})[p.toLowerCase()];if(m.special==='castle')return m.t>m.f?'O-O':'O-O-O';return letter+(cap?'x':'')+sq(m.t)+(m.promotion?'='+m.promotion.toUpperCase():'');}
-const seenKey='skakakademiet_seen_moves_v25';
+// Each lesson step gets its own first-time guidance, independent of other lessons.
+// A new storage key also avoids old global move history hiding guidance unexpectedly.
+const seenKey='skakakademiet_seen_lesson_steps_v38';
 let seenMoves=[];
 try { seenMoves=JSON.parse(localStorage.getItem(seenKey)||'[]'); if(!Array.isArray(seenMoves))seenMoves=[]; } catch(e){seenMoves=[];}
+function currentLessonStepKey(){return lessonIndex+':'+history.length;}
 function repeatedMoveCard(){
  if(mode!=='learn'||completed||game.t!=='w'||isNewLessonMove())return '';
  const u=lessons[lessonIndex].line[history.length];
@@ -288,8 +291,8 @@ function repeatedMoveCard(){
  const code=notation(game,m);
  return `<div class="repeat-move-card"><div class="repeat-label">REPÉTITION · TRÆKKET HAR DU SET FØR</div><div class="repeat-main">${escape(name)} → ${escape(destination)}</div><div class="repeat-code">Skaknotation: ${escape(code)}</div><div class="repeat-desc">Find selv brikken og feltet på brættet. Vi viser ikke startfeltet eller farvede løsningsmarkeringer.</div></div>`;
 }
-function isNewLessonMove(){return mode==='learn'&&game.t==='w'&&!completed&&!!lessons[lessonIndex].line[history.length]&&!seenMoves.includes(lessons[lessonIndex].line[history.length]);}
-function rememberMove(u){if(!seenMoves.includes(u)){seenMoves.push(u);try{localStorage.setItem(seenKey,JSON.stringify(seenMoves));}catch(e){}}}
+function isNewLessonMove(){return mode==='learn'&&game.t==='w'&&!completed&&!!lessons[lessonIndex].line[history.length]&&!seenMoves.includes(currentLessonStepKey());}
+function rememberMove(u){const key=lessonIndex+':'+(history.length-1);if(!seenMoves.includes(key)){seenMoves.push(key);try{localStorage.setItem(seenKey,JSON.stringify(seenMoves));}catch(e){}}}
 let lessonGuidance='auto',coachVisual=false;
 function setup(){lessonGuidance='auto';coachVisual=false;selected=-1;highlights=[];history=[];lastMove=null;pending=null;botBusy=false;hintShown=false;completed=false;message='';game=parse(mode==='learn'?lessons[lessonIndex].fen:mode==='puzzles'?puzzles[puzzleIndex].fen:mode==='basic'?basicTopics[basicIndex].fen:START);render();}
 function nav(next){const entering=next==='learn'&&mode!=='learn';mode=next;setup();if(entering&&!strategySeen){strategySeen=true;showStrategy();}}
